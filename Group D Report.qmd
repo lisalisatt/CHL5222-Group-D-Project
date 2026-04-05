@@ -1,0 +1,987 @@
+---
+title: "Effect of Computerized Cognitive Behavioural Therapy on Depression Severity: A Randomized Controlled Trial"
+author: "Norah Alotaibi, Sandra Boahemaah, Abhinav Kansal, Jil Soni, Lisa Wang"
+format:
+  pdf:
+    documentclass: article
+    classoption: 11pt
+    geometry: margin=1in
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(nlme)
+library(knitr)
+library(kableExtra)
+library(tibble)
+library(modelsummary)
+library(gridExtra)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+```
+
+# Introduction
+
+Depression is a common mental health condition that can substantially affect how individuals think, feel, and function in daily life. It is associated with reduced quality of life and often requires ongoing care and support. One well-established and effective treatment for depression is cognitive behavioural therapy (CBT). However, traditional face-to-face CBT is not always easily accessible, as it can be costly, time-consuming, and dependent on the availability of trained professionals. These barriers have led to increasing interest in technology-based approaches to delivering therapy in a more accessible manner. Beating the Blues (BtheB) is a computerized CBT program consisting of eight 50-minute weekly interactive sessions, with assigned “homework” activities between sessions. As it does not require face-to-face appointments with therapists, it reduces scheduling and cost barriers, thereby improving accessibility. To evaluate its efficacy, a randomized study was conducted in which participants with depression and/or anxiety were assigned to either BtheB or treatment as usual (TAU). In this study, TAU consisted of standard care provided by general practitioners, such as medication or referral to counselling services. Depression severity was assessed using the Beck Depression Inventory (BDI), a 21-item self-report questionnaire measuring the presence and severity of depressive symptoms. Measurements were obtained at baseline (prior to treatment initiation), at the end of treatment (2 months), and at 4, 6, and 8 months of follow-up. These repeated assessments allow for the evaluation of treatment efficacy during the active treatment period as well as the persistence of treatment effects over follow-up.
+
+# Method
+
+## Study Design and Data Source
+
+This study uses data from a randomized controlled trial to examine the efficacy of the Beating the Blues (BtheB) intervention during both the active treatment phase and the post-treatment follow-up period. A total of 100 participants were recruited and randomly assigned to either receive BtheB or treatment as usual (TAU).
+
+Beck Depression Inventory (BDI) scores were collected at baseline (study entry), at the end of treatment (2 months), and at 4, 6, and 8 months following study entry, corresponding to 2, 4, and 6 months of follow-up after treatment completion. Additionally, baseline covariates, including concomitant drug therapy status and duration of the current depressive episode, were collected at study entry.
+
+## Statistical Analysis
+
+All statistical analyses were conducted using RStudio (version 2025.9.2.418; R version 4.4.2). Descriptive statistics were used to summarize participant characteristics at baseline and across follow-up time points. For longitudinal measurements, summary statistics were reported at each assessment time (baseline, end of treatment, and follow-up visits) to characterize changes over time. Continuous variables were summarized using means and standard deviations (SD), while categorical variables were presented as frequencies and percentages. Where appropriate, distributions of key variables over time were examined to assess patterns and variability across repeated measurements.
+
+### Model Specification & Selection
+
+Linear mixed-effects models were used to account for within-subject correlation arising from repeated measurements and to capture potential variation in individual responses to treatment. This approach allows for subject-specific variability in depression trajectories over time, which is particularly relevant in mental health outcomes where treatment responses may differ across individuals.
+
+To evaluate treatment effects during both the active treatment and post-treatment follow-up phases, time was modeled using a linear spline with a knot at 2 months post–study entry, corresponding to the end of the active treatment phase. This specification allows for different rates of change in depression scores across phases, accommodating potential nonlinearity in temporal trends.
+
+Model selection was conducted in two stages. First, the covariance structure was selected by fitting models that included all key variables of interest under alternative covariance structures representing different correlation patterns across repeated measurements. The optimal covariance structure was determined based on the lowest Akaike Information Criterion (AIC) and Bayesian Information Criterion (BIC).
+
+Following selection of the covariance structure, a series of models with varying covariate specifications were fitted. The final model was chosen based on a balance between model fit and interpretability, retaining key variables related to treatment and time while achieving lower AIC and BIC values.
+
+### Model Diagnostic
+
+Model assumptions were assessed using graphical diagnostics of residuals and random effects. Linear mixed-effects models rely on several key assumptions, including correct specification of the mean and variance structure, normality of the random effects and error terms, and independence of residuals after accounting for the covariance structure. 
+
+Histograms of standardized residuals were used to assess symmetry and overall distributional shape, with an approximately symmetric, bell-shaped distribution expected. Normal Q–Q plots were used to assess normality, where residuals were expected to lie close to the reference line. Plots of standardized residuals against predicted values were used to assess homoscedasticity and model specification, with residuals expected to be randomly scattered around zero without systematic trends or changes in spread. To evaluate potential residual correlation, lagged residual plots were examined, where independence was indicated by the absence of discernible patterns between residuals and their lagged values.
+
+The distributional assumptions of the random effects were assessed using normal Q–Q plots and histograms, with approximate normality and symmetry around zero expected.
+
+### Inference on Treatment Effects
+
+Treatment efficacy was evaluated based on regression coefficients from the fitted linear mixed-effects model. Specifically, treatment effects during the active treatment period and the post-treatment follow-up period were defined through model coefficients. Two-sided Wald t-tests were performed. The significance level was set at $P<0.05$.
+
+# Result
+
+```{r load data, include=FALSE}
+# Read data
+depression <- read.table("btheb.txt", header=TRUE)
+
+# convert to long format
+depression_long <- depression %>%
+  mutate(id = row_number()) %>%
+  pivot_longer(
+    cols = c(bdi.pre, bdi.2m, bdi.4m, bdi.6m, bdi.8m),
+    names_to = "occasion",
+    values_to = "bdi") %>%
+  mutate(
+    occasion = factor(
+      occasion,
+      levels = c("bdi.pre", "bdi.2m", "bdi.4m", "bdi.6m", "bdi.8m"),
+      labels = c("Pre", "2m", "4m", "6m", "8m")),
+    time = case_when(
+      occasion == "Pre" ~ 0,
+      occasion == "2m"  ~ 2,
+      occasion == "4m"  ~ 4,
+      occasion == "6m"  ~ 6,
+      occasion == "8m"  ~ 8),
+    time = as.numeric(time),
+    knot = 2,
+    time_knot = (time - knot) * I(time > knot) # create time knot
+  )
+```
+
+## Baseline Characteristics
+
+Table 1 summarizes the baseline characteristics of study participants. Mean BDI scores at study entry were similar between the TAU and BtheB groups, suggesting no substantial difference in baseline depression severity. Overall, participants in both groups had relatively high mean BDI scores (24.19 for TAU and 22.54 for BtheB), corresponding to the range of moderate depression (20–28) on the BDI scale.
+
+Some imbalance was observed in concomitant drug therapy prescription, with a higher proportion of participants receiving drug therapy in the BtheB group (57.7%) compared to the TAU group (29.2%). In contrast, depression duration appeared comparable across groups, with similar distributions between shorter (<6 months) and longer (>6 months) duration categories.
+
+
+```{r Baseline characteristic summary table, echo=FALSE}
+# summary statistic for baseline bdi
+bdi_summary <- depression %>%
+  group_by(treatment) %>%
+  summarise(
+    mean = mean(bdi.pre, na.rm = TRUE),
+    sd = sd(bdi.pre, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  mutate(value = sprintf("%.2f (%.2f)", mean, sd)) %>%
+  select(treatment, value) %>%
+  pivot_wider(names_from = treatment, values_from = value)
+
+# summary statistic for drug
+drug_summary <- depression %>%
+  group_by(treatment, drug) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(treatment) %>%
+  mutate(pct = n / sum(n) * 100,
+         value = sprintf("%d (%.1f%%)", n, pct)) %>%
+  select(treatment, drug, value) %>%
+  pivot_wider(names_from = treatment, values_from = value)
+
+# summary statistic for length
+length_summary <- depression %>%
+  group_by(treatment, length) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(treatment) %>%
+  mutate(pct = n / sum(n) * 100,
+         value = sprintf("%d (%.1f%%)", n, pct)) %>%
+  select(treatment, length, value) %>%
+  pivot_wider(names_from = treatment, values_from = value)
+
+# Combine to a single table
+table1 <- bind_rows(
+  # baseline bdi
+  data.frame(Characteristic = "BDI score, mean (SD)",bdi_summary),
+  data.frame(Characteristic = " ", TAU = "", BtheB = ""),
+  
+  # drug
+  data.frame(Characteristic = "Concomitant drug therapy prescription, n (%)", TAU = "", BtheB = ""),
+  drug_summary %>% 
+    rename(Characteristic = drug),
+  data.frame(Characteristic = " ", TAU = "", BtheB = ""),
+  
+  # length
+  data.frame(Characteristic = "Depression duration, n (%)", TAU = "", BtheB = ""),
+  length_summary %>%
+    rename(Characteristic = length))
+
+# reorder treatment column (TAU then BtheB)
+table1 <- table1 %>%
+  select(Characteristic, TAU, BtheB)
+
+# format table
+kable(table1, align = "lcc", 
+      booktabs = TRUE,
+      caption = "Baseline Characteristics of Participants by Treatment Group",
+      escape=FALSE) %>%
+  kable_styling(full_width = FALSE) %>%
+  add_indent(c(4,5,8,9))
+```
+
+## Trajectories of BDI Scores Over Time
+
+Figure 1 illustrates the trajectory of BDI scores over time by treatment group. On average, BDI scores decreased over time in both groups, indicating an overall improvement in depressive symptoms. However, participants in the BtheB group showed a relatively more evident reduction in mean BDI scores during the early treatment period compared to the TAU group. This difference appeared to persist throughout the follow-up period, with the BtheB group consistently exhibiting lower mean BDI scores at each time point.
+
+At the individual level, substantial variability in trajectories was observed within both groups, with some participants showing decreasing BDI scores over time, suggesting improvement in depression severity, while others exhibited more fluctuating patterns. This heterogeneity indicates considerable differences in individual responses to treatment.
+
+```{r trajectory plot, echo=FALSE, fig.align='center', fig.height=5}
+# create trajectory plot:
+depression_long %>%
+  filter(!is.na(bdi)) %>%
+  ggplot(aes(x = time, y = bdi)) +
+  
+  # individual trajectories
+  geom_line(aes(group = id, color = treatment),
+            alpha = 0.15, linewidth = 0.6) +
+  geom_point(
+    aes(group = id, color = treatment),
+    alpha = 0.15, size = 1
+  ) +
+  
+  # mean trajectories 
+  stat_summary(aes(color = treatment, group = treatment),
+               fun = mean,
+               geom = "line",
+               linewidth = 1.3) +
+  stat_summary(aes(color = treatment, group = treatment),
+               fun = mean,
+               geom = "point",
+               size = 2.5) +
+  scale_x_continuous(breaks = c(0, 2, 4, 6, 8)) +
+  labs(title = "Figure 1. Trajectory of BDI scores over time by treatment group",
+       subtitle = "Faint lines show individual trajectories; bold lines show group means.",
+       x = "Time (months)",
+       y = "BDI score",
+       color = "Treatment") +
+  theme_minimal() + 
+  theme(
+    plot.title = element_text(size = 12, face = "bold"),
+    plot.subtitle = element_text(size = 11),
+    legend.position = "top",
+    legend.direction = "horizontal")
+```
+
+## Model Selection
+
+### Covariance Structure 
+
+We systematically evaluated covariance structures to identify the model that best captured the correlation pattern in our longitudinal data. Table 2 presents the comparison of seven candidate models, including random intercepts and random slopes with different variance structures.
+
+Model 7, incorporating heteroskedastic errors across depression episode length, yielded the lowest AIC (2648.22) and BIC (2699.16), indicating the best fit as compared to the other models. This suggests that residual variability differs meaningfully between patients with shorter (<6 months) versus longer (>6 months) depression episodes, even after accounting for random subject-level variation in baseline BDI and rate of change. Therefore, we selected this as our covariance structure for subsequent covariate selection.
+
+### Covariate Selection & Final Model
+
+Table 3 presents results from three nested models with progressively simpler covariate structures. Model 1 included treatment assignment, time (linear spline with knot at 2 months to distinguish active treatment from post-treatment phases), concomitant drug therapy, depression episode length, and treatment-by-time interactions. Models 2 and 3 excluded drug therapy and depression episode length, respectively.
+
+We observed that Model 2 achieved the lowest AIC (2657.84) and BIC (2705.13), and was therefore selected as the final model. The exclusion of the drug covariate resulted in minimal changes to parameter estimates and standard errors for treatment effects (the primary parameters of interest), suggesting that this variable did not meaningfully confound the treatment–BDI relationship.
+
+In contrast, Model 3 excluded depression episode length and showed a slight increase in AIC and BIC, indicating a poorer model fit despite its reduced complexity. This suggests that depression episode length contributes to explaining variability in BDI scores and should be retained in the model. Overall, Model 2 provided the best balance between model fit and interpretability.
+
+### Model Diagnostics
+
+Comprehensive diagnostic plots for the final model are provided in Figure 2 (Appendix). The histogram and normal Q-Q plot of standardized residuals (panels a-b) demonstrate reasonable approximation to normality, with no severe outliers (all residuals within ±4 standard deviations). The standardized residuals versus predicted mean plot (panel c) shows no systematic patterns, suggesting adequate model specification and homogeneity of variance (after accounting for heteroskedastic errors by depression length). Furthermore, the lagged standardized residual plot (panel d) displays no strong autocorrelation structure, supporting our choice of independent errors conditional on the random effects. The normal Q-Q plots for random intercepts and slopes (panels e-f) show minor deviations from normality in the tails, particularly for random intercepts, but these are not severe enough to invalidate inference. Finally, the histogram of random effects (panel g) confirms substantial between-subject heterogeneity in both baseline BDI levels and rates of change, justifying our random slopes model specification.
+
+```{r select covariance structure, include=FALSE}
+# (a) Independent errors
+fit_ind <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  data = depression_long,
+  na.action = na.omit)
+
+# (b) AR(1) 
+fit_ar1 <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  correlation = corAR1(form = ~ time | id),
+  data = depression_long,
+  na.action = na.omit)
+
+# (c) Compound symmetry
+fit_cs <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  correlation = corCompSymm(form = ~ time | id),
+  data = depression_long,
+  na.action = na.omit)
+
+# Compare AIC and BIC
+AIC(fit_ind, fit_ar1, fit_cs)
+BIC(fit_ind, fit_ar1, fit_cs)
+
+# comparison table
+model_comp <- tibble(
+  Model = c("Independent", "AR(1)", "Compound Symmetry"),
+  AIC = c(AIC(fit_ind), AIC(fit_ar1), AIC(fit_cs)),
+  BIC = c(BIC(fit_ind), BIC(fit_ar1), BIC(fit_cs)),
+  logLik = c(logLik(fit_ind), logLik(fit_ar1), logLik(fit_cs)))
+
+model_comp %>%
+  arrange(AIC) %>%
+  kable(digits = 2, caption = "Model comparison by AIC and BIC") %>%
+  kable_styling(full_width = FALSE)
+
+```
+
+```{r select variance structure, include=FALSE}
+fit_base <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  data = depression_long,
+  na.action = na.omit
+)
+
+# by time 
+fit_het_time <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  data = depression_long,
+  weights = varIdent(form = ~ 1 | time),
+  na.action = na.omit
+)
+
+#  by treatment
+fit_het_trt <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | treatment),
+  data = depression_long,
+  na.action = na.omit
+)
+
+# by drug 
+fit_het_drug <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | drug),
+  data = depression_long,
+  na.action = na.omit
+)
+
+# by length
+fit_het_length <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | length),
+  data = depression_long,
+  na.action = na.omit
+)
+
+# comparison table
+model_comp <- tibble(
+  Model = c("Homoscedastic",
+            "Hetero by Time",
+            "Hetero by Treatment",
+            "Hetero by Drug",
+            "Hetero by Length"),
+  AIC = c(AIC(fit_base),
+          AIC(fit_het_time),
+          AIC(fit_het_trt),
+          AIC(fit_het_drug),
+          AIC(fit_het_length)),
+  BIC = c(BIC(fit_base),
+          BIC(fit_het_time),
+          BIC(fit_het_trt),
+          BIC(fit_het_drug),
+          BIC(fit_het_length))
+)
+
+model_comp
+
+```
+
+```{r Covariance Model Comparison table, echo=FALSE, fig.pos = 'H'}
+# build covariance comparison table
+cov_table <- tibble(
+  `Covariance model` = c(
+    "1. Random intercepts and slopes + independent errors",
+    "2. Random intercepts and slopes + AR(1) errors",
+    "3. Random intercepts and slopes + compound symmetry",
+    "4. Random intercepts and slopes + heteroskedastic errors (time)",
+    "5. Random intercepts and slopes + heteroskedastic errors (treatment)",
+    "6. Random intercepts and slopes + heteroskedastic errors (drug)",
+    "7. Random intercepts and slopes + heteroskedastic errors (length)"),
+  AIC = c(
+    AIC(fit_ind),
+    AIC(fit_ar1),
+    AIC(fit_cs),
+    AIC(fit_het_time),
+    AIC(fit_het_trt),
+    AIC(fit_het_drug),
+    AIC(fit_het_length)),
+  BIC = c(
+    BIC(fit_ind),
+    BIC(fit_ar1),
+    BIC(fit_cs),
+    BIC(fit_het_time),
+    BIC(fit_het_trt),
+    BIC(fit_het_drug),
+    BIC(fit_het_length))) %>%
+  mutate(
+    AIC = round(AIC, 2),
+    BIC = round(BIC, 2))
+
+# find best model (based on AIC)
+best_model <- which.min(cov_table$AIC)
+
+# render table
+kbl(
+  cov_table,
+  booktabs = TRUE,
+  align = c("l", "c", "c"),
+  caption = "Comparison of Covariance Structures"
+) %>%
+  kable_styling(full_width = FALSE, latex_options = "hold_position") %>%
+  row_spec(best_model, bold = TRUE, background = "#F2E5C4")
+
+```
+
+
+```{r select final model, include=FALSE}
+# change reference group for treatment to be TAU
+depression_long <- depression_long %>%
+  mutate(treatment = relevel(as.factor(treatment), ref = "TAU"))
+
+# full model
+fit_full <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | length),
+  data = depression_long,
+  method = "ML",
+  na.action = na.omit
+)
+
+# no drug
+fit_no_drug <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | length),
+  data = depression_long,
+  method = "ML",
+  na.action = na.omit
+)
+
+# no length
+fit_no_length <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + drug,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | length),
+  data = depression_long,
+  method = "ML",
+  na.action = na.omit
+)
+
+# Comparison table
+comp_tab <- tibble(
+  Model = c("Full", "No drug", "No length"),
+  AIC = c(AIC(fit_full), AIC(fit_no_drug), AIC(fit_no_length)),
+  BIC = c(BIC(fit_full), BIC(fit_no_drug), BIC(fit_no_length)))
+
+```
+
+
+```{r Regression Result Table, echo=FALSE}
+models <- list(
+  "(1)" = fit_full,
+  "(2)" = fit_no_drug,
+  "(3)" = fit_no_length)
+
+coef_map <- c(
+  "(Intercept)" = "Intercept",
+  "treatmentBtheB" = "Treatment \\\\(\\textit{BtheB vs. TAU})",
+  "time" = "Time \\\\(\\textit{since study entry in months})",
+  "time_knot" = "Post-treatment time \\\\(\\textit{truncated linear term})",
+  "drugYes" = "Concomitant drug therapy prescription \\\\(\\textit{Yes vs. No})",
+  "length>6m" = "Depression duration \\\\(\\textit{>6 months vs. <6 months})",
+  "treatmentBtheB:time" = "Treatment × Time",
+  "treatmentBtheB:time_knot" = "Treatment × Post-treatment time")
+
+extra_rows <- tibble::tribble(
+  ~term, ~`(1)`, ~`(2)`, ~`(3)`,
+  "AIC", round(AIC(fit_full), 2), round(AIC(fit_no_drug), 2), round(AIC(fit_no_length), 2),
+  "BIC", round(BIC(fit_full), 2), round(BIC(fit_no_drug), 2), round(BIC(fit_no_length), 2),
+  "Log-Likelihood", round(as.numeric(logLik(fit_full)), 2), round(as.numeric(logLik(fit_no_drug)), 2), round(as.numeric(logLik(fit_no_length)), 2))
+
+tbl <- modelsummary(
+  models,
+  coef_map = coef_map,
+  statistic = "({std.error})",
+  stars = c(
+    "+" = 0.1,
+    "*" = 0.05,
+    "**" = 0.01,
+    "***" = 0.001),
+  title = "Summary of Linear Mixed-Effects Model Results",
+  gof_omit = ".*",
+  add_rows = extra_rows,
+  output = "data.frame")
+
+names(tbl)[names(tbl) == "term"] <- "Covariate"
+tbl <- tbl[, c("Covariate", "(1)", "(2)", "(3)")]
+aic_row <- which(tbl$Covariate == "AIC")
+
+# blank out covariate labels on standard error rows
+is_se_row <- grepl("^\\(", tbl[["(1)"]]) |
+             grepl("^\\(", tbl[["(2)"]]) |
+             grepl("^\\(", tbl[["(3)"]])
+
+tbl$Covariate[is_se_row] <- ""
+
+# create table
+kbl(
+  tbl,
+  booktabs = TRUE,
+  align = c("l", "c", "c", "c"),
+  caption = "Summary of Linear Mixed-Effects Model Results",
+  escape = FALSE) %>%
+  add_header_above(c(" " = 1, "Dependent variable: BDI score" = 3)) %>%
+  row_spec(aic_row - 1, hline_after = TRUE) %>%
+  footnote(
+    general = c(
+      "Values in parentheses are estimated coefficients' standard errors.",
+      "+ p < 0.1, * p < 0.05, ** p < 0.01, *** p < 0.001"),
+    threeparttable = TRUE)
+```
+
+```{r model diagnostic plot, include=FALSE, warning=FALSE, message=FALSE, fig.height = 10, fig.width = 8, fig.pos='H'}
+# Final model
+fit_final <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | length),
+  data = depression_long,
+  method = "ML",
+  na.action = na.omit)
+
+# standardized stage-one residuals
+rhat <- resid(fit_final, type = "normalized")
+
+# conditional mean / fitted values
+condmean <- predict(fit_final)
+yhat <- predict(fit_final)
+
+# use the same rows kept in the fitted model
+diag_dat <- depression_long %>%
+  drop_na(bdi, treatment, time, time_knot, length) %>%
+  arrange(id, time)
+
+# response vector
+y <- diag_dat$bdi
+
+# raw stage-one residuals
+stg1r <- y - condmean
+
+# combined raw + standardized residual data for panel 1
+rtype <- c(rep("Raw", length(stg1r)), rep("Standardized", length(rhat)))
+resid_vals <- c(stg1r, rhat)
+
+stg1resids <- data.frame(
+  rtype = rtype,
+  resid = as.numeric(resid_vals))
+
+# data for panels 3 and 4
+diag_dat2 <- diag_dat %>%
+  mutate(
+    fitted = as.numeric(yhat),
+    rhat = as.numeric(rhat)
+  ) %>%
+  group_by(id) %>%
+  arrange(time, .by_group = TRUE) %>%
+  mutate(rhat1 = lag(rhat)) %>%
+  ungroup()
+
+# random effects
+ranef_fit <- ranef(fit_final)
+
+ranef_long <- ranef_fit %>%
+  rownames_to_column(var = "id") %>%
+  pivot_longer(
+    cols = -id,
+    names_to = "ranefs",
+    values_to = "estimates")
+
+# specify theme for the plot
+diag_theme <- theme_bw(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 10.5),
+    panel.grid.minor = element_blank())
+
+# 1. Histogram of raw + standardized residuals
+p1 <- ggplot(stg1resids, aes(x = resid, fill = rtype)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 40) +
+  labs(
+    title = "(a) Histogram of raw and \nstandardized residuals",
+    x = "Residuals",
+    y = "Count",
+    fill = "Type") +
+  theme_bw(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 10.5),
+    legend.position = "top",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+# 2. Q-Q plot of standardized residuals
+p2 <- ggplot(diag_dat2, aes(sample = rhat)) +
+  stat_qq(size = 1) +
+  stat_qq_line(linewidth = 0.8) +
+  labs(
+    title = "(b) Normal Q-Q plot of \nstandardized residuals",
+    x = "Theoretical quantiles",
+    y = "Sample quantiles") +
+  diag_theme
+
+# 3. Standardized residuals vs predicted mean
+p3 <- ggplot(diag_dat2, aes(x = fitted, y = rhat)) +
+  geom_point(alpha = 0.65, size = 1.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.6) +
+  labs(
+    title = "(c) Standardized residuals \nvs. predicted mean",
+    x = "Predicted mean",
+    y = "Standardized residual") +
+  diag_theme
+
+# 4. Lagged standardized residual plot
+p4 <- ggplot(filter(diag_dat2, !is.na(rhat1)), aes(x = rhat1, y = rhat)) +
+  geom_point(alpha = 0.65, size = 1.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.6) +
+  labs(
+    title = "(d) Lagged standardized \nresidual plot",
+    x = "Lagged standardized residual",
+    y = "Standardized residual") +
+  diag_theme
+
+# 5. Q-Q plot of random intercepts
+p5 <- ggplot(
+  data.frame(rand_int = ranef_fit[, 1]),
+  aes(sample = rand_int)) +
+  stat_qq(size = 1) +
+  stat_qq_line(linewidth = 0.8) +
+  coord_cartesian(xlim = c(-1.5, 1.5)) +
+  labs(
+    title = "(e) Normal Q-Q plot of \nrandom intercepts",
+    x = "Theoretical quantiles",
+    y = "Sample quantiles") +
+  diag_theme
+
+# 6. Q-Q plot of random slope for time
+p6 <- ggplot(
+  data.frame(rand_slope = ranef_fit[, 2]),
+  aes(sample = rand_slope)) +
+  stat_qq(size = 1) +
+  stat_qq_line(linewidth = 0.8) +
+  coord_cartesian(xlim = c(-1.5, 1.5)) +
+  labs(
+    title = "(f) Normal Q-Q plot of \nrandom slope for time",
+    x = "Theoretical quantiles",
+    y = "Sample quantiles") +
+  diag_theme
+
+# 7. Histogram of random effects
+p7 <- ggplot(ranef_long, aes(x = estimates)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30, fill = "orange", color = "black") +
+  facet_grid(~ ranefs, scales = "free") +
+  labs(
+    title = "(g) Histogram of random effects",
+    x = "Estimates",
+    y = "Count") +
+  diag_theme
+
+# Arrange panels
+final_diag_plot <- (p1 + p2 + p3) /
+                   (p4 + p5 + p6) /
+                   p7 +
+  plot_annotation(
+    title = "Figure 2. Diagnostic Plots for Final Model Assessment",
+    theme = theme(plot.title = element_text(size = 15, face = "bold", hjust = 0.5))
+    )
+
+final_diag_plot
+```
+
+\newpage
+
+## Treatment Effects and Covariate Associations
+
+### Treatment Efficacy During Active Treatment Phase
+
+The final model (Model 2, Table 3) revealed several key findings regarding BtheB efficacy during the active 0-2 month treatment period. The intercept estimate ($\hat{\beta_1}= 22.871$, SE = 1.806, p < 0.001) represents the estimated baseline BDI score for TAU patients with depression episodes <6 months duration.
+
+For both treatment groups, BDI scores declined significantly during active treatment, as evidenced by the coefficient for time ($\hat{\beta_3} = -2.402$, SE = 0.540, p < 0.001). This indicates that TAU patients experienced an average reduction of 2.40 BDI points per month during the first two months.
+
+The treatment-by-time interaction ($\hat{\beta_6} = −1.229$, SE = 0.734, p < 0.1) approached statistical significance, suggesting that BtheB patients experienced an additional 1.23 BDI point reduction per month compared to TAU during active treatment.
+
+However, we note that this effect did not achieve conventional statistical significance at $\alpha = 0.05$ (Table 4: t = −1.674, p = 0.095), and thus limiting our ability to infer definitive conclusions about BtheB superiority during active treatment.
+
+### Treatment Efficacy During Post-Treatment Follow-Up
+
+During the post-treatment phase (months 2-8), the trajectory of BDI scores changed for both groups. The positive coefficient for post-treatment time ($\hat{\beta_4}=1.510$, SE = 0.673, p < 0.05) indicates that the rate of improvement slowed during follow-up, with TAU patients experiencing only a 0.89 BDI point reduction per month ($\hat{\beta_3} + \hat{\beta_4}= −2.402+1.510 = −0.892$).
+
+Critically, our formal hypothesis test for post-treatment efficacy (Table 3) found no significant difference between treatment groups in their post-treatment slopes ($\hat{\beta_6} + \hat{\beta_7}=0.252$, SE = 0.350, t = 0.721, p = 0.472). This indicates that any advantage gained during the active BtheB intervention was not sustained during the 6-month follow-up period.
+
+```{r Treatment Efficacy, echo=FALSE}
+# Extract value needed for hypothesis test
+summary_fit <- summary(fit_final)
+vc <- vcov(fit_final)
+
+# coefficients
+beta6 <- summary_fit$tTable["treatmentBtheB:time", "Value"]
+beta7 <- summary_fit$tTable["treatmentBtheB:time_knot", "Value"]
+
+# covariance
+var6  <- vc["treatmentBtheB:time", "treatmentBtheB:time"]
+var7  <- vc["treatmentBtheB:time_knot", "treatmentBtheB:time_knot"]
+cov67 <- vc["treatmentBtheB:time", "treatmentBtheB:time_knot"]
+
+# Efficacy for active treatment phase
+se6   <- summary_fit$tTable["treatmentBtheB:time", "Std.Error"]
+t6    <- summary_fit$tTable["treatmentBtheB:time", "t-value"]
+p6    <- summary_fit$tTable["treatmentBtheB:time", "p-value"]
+
+# Efficacy for post-treatment phase
+est_post <- beta6 + beta7
+se_post  <- sqrt(var6 + var7 + 2 * cov67)
+t_post   <- est_post / se_post
+
+df6 <- fit_final$fixDF$X["treatmentBtheB:time"]
+df7 <- fit_final$fixDF$X["treatmentBtheB:time_knot"]
+df_post <- min(df6, df7)
+
+p_post <- 2 * pt(abs(t_post), df = df_post, lower.tail = FALSE)
+
+# Create summary table
+results_table <- data.frame(
+  Phase = c("Active treatment", "Post-treatment"),
+  Parameter = c("$\\beta_{6}$", "$\\beta_{6} + \\beta_{7}$"),
+  Hypothesis = c("$H_0: \\beta_{6} = 0$", "$H_0: \\beta_{6} + \\beta_{7} = 0$"),
+  Estimate = round(c(beta6, est_post), 3),
+  SE = round(c(se6, se_post), 3),
+  `t-value` = round(c(t6, t_post), 3),
+  `p-value` = round(c(p6, p_post), 3)
+)
+
+kbl(
+  results_table,
+  booktabs = TRUE,
+  align = c("l", "c", "c", "c", "c", "c", "c"),
+  caption = "Hypothesis Tests for BtheB Treatment Efficacy During Active and Post-Treatment Phases",
+  escape = FALSE) %>%
+  kable_styling(
+    full_width = FALSE,
+    latex_options = c("hold_position")) %>%
+  row_spec(0, bold = TRUE) %>%   # header bold
+  column_spec(1, bold = TRUE)
+```
+
+### Effect of Depression Episode Duration
+
+Patients with depression episodes >6 months at baseline had BDI scores approximately 3.02 points higher than those with shorter episodes ($\hat{\beta_5}=3.02$, SE = 1.936, p = 0.119), after adjusting for treatment and time. While this effect approached but did not reach statistical significance, it represents a clinically meaningful difference and confirms depression chronicity as an important prognostic indicator.
+
+\newpage
+
+# Discussion
+
+## Model equations
+
+**Preferred model's equation:**
+
+\begin{equation}
+\begin{split}
+Y_{ij} =\; & \beta_1 + \beta_2 Treatment_i + \beta_3 Time_{ij} + \beta_4 (Time_{ij} - 2)_+ + \beta_5 Length_i \\
+& + \beta_6 Treatment_i \times Time_{ij} + \beta_7 Treatment_i \times (Time_{ij} - 2)_+ \\
+& + b_{0i} + b_{1i} Time_{ij} + \epsilon_{ij}
+\end{split}
+\end{equation}
+
+where $(\text{Time}_{ij} - 2)_+ = \text{Time}_{ij} - 2$ if $\text{Time}_{ij} > 2$, and $0$ otherwise.
+
+**Marginal expected mean response:**
+
+For individuals receiving treatment as usual (TAU):
+
+\begin{equation}
+E(Y_{ij}) = \beta_1 + \beta_3 \text{Time}_{ij} + \beta_4 (\text{Time}_{ij} - 2)_+ + \beta_5 \text{Length}_i
+\end{equation}
+
+- During active treatment phase: 
+
+\begin{equation}
+E(Y_{ij}) = \beta_1 + \beta_3 \text{Time}_{ij} + \beta_5 \text{Length}_i
+\end{equation}
+
+- During post-treatment follow-up period: 
+
+\begin{equation}
+E(Y_{ij}) = (\beta_1 - 2\beta_4) + (\beta_3 + \beta_4)\text{Time}_{ij} + \beta_5 \text{Length}_i
+\end{equation}
+
+For individuals receiving the Beating the Blues (BtheB) intervention:
+
+\begin{equation}
+E(Y_{ij}) = (\beta_1 + \beta_2) + (\beta_3 + \beta_6)\text{Time}_{ij} + (\beta_4 + \beta_7)(\text{Time}_{ij} - 2)_+ + \beta_5 \text{Length}_i
+\end{equation}
+
+- During active treatment phase: 
+
+\begin{equation}
+E(Y_{ij}) = (\beta_1 + \beta_2) + (\beta_3 + \beta_6)\text{Time}_{ij} + \beta_5 \text{Length}_i
+\end{equation}
+
+- During post-treatment follow-up period: 
+
+\begin{equation}
+E(Y_{ij}) = (\beta_1 + \beta_2 - 2(\beta_4 + \beta_7)) + (\beta_3 + \beta_4 + \beta_6 + \beta_7)\text{Time}_{ij} + \beta_5 \text{Length}_i
+\end{equation}
+
+## Summary of Principal Findings
+
+This randomized trial evaluated the efficacy of Beating the Blues (BtheB) compared to treatment as usual (TAU) in reducing depression symptoms measured by the Beck Depression Inventory. Our analysis of 100 patients followed for up to 8 months revealed three principal findings:
+
+First, both treatment groups experienced significant reductions in BDI scores during the active 2-month treatment phase, with average declines of approximately 2.4 points per month. This confirms that the study population was treatment-responsive and that natural history or measurement artifacts do not explain the observed improvements.
+
+Second, BtheB demonstrated a marginally significant additional benefit during active treatment, with patients receiving the computerized intervention experiencing approximately 1.3 additional BDI points reduction per month compared to TAU (p = 0.086). Over the 2 month treatment period, this translates to an extra 2.5 point reduction. While this effect approached but did not achieve conventional statistical significance, the magnitude is clinically relevant and warrants consideration.
+
+Third, and most importantly, the potential advantage of BtheB was not sustained during the 6-month post-treatment follow-up period. Both groups showed attenuated rates of improvement after the active intervention ended, and the trajectories converged. This finding raises important questions about the durability of computerized CBT interventions and suggests that relapse prevention strategies may be necessary.
+
+## Strengths
+
+Our study employed a rigorous statistical approach using linear mixed-effects models that appropriately accounted for the longitudinal structure of the data and accommodated missing
+
+3 observations under the missing-at-random (MAR) assumption. The use of piecewise linear splines with a knot at 2 months allowed us to separately estimate treatment effects during active intervention versus follow-up, directly addressing the research question regarding sustained efficacy.
+
+In addition to this, our model selection process was systematic and transparent. We compared multiple covariance structures and selected the model that best captured heterogeneity in residual variance by depression episode length, improving precision of effect estimates. Model diagnostics confirmed adequate fit and no serious violations of assumptions.
+
+We also controlled for depression chronicity (episode length), an important prognostic factor that could confound treatment comparisons. Our finding that longer depression episodes predicted worse outcomes highlights the importance of early intervention.
+
+## Limitations
+
+The sample size (n = 100) limited power to detect small-to-moderate effects; the marginal treatment-by-time interaction (p = 0.086) may have been significant with a larger sample. Approximately 150–200 patients would be needed to detect a 1.3 point/month effect with 80% power at $\alpha = 0.05$.
+
+Furthermore, missing data were substantial and increased over time, with only 47% of patients contributing BDI measurements at the 8-month assessment. While linear mixed models provide valid inference under the MAR assumption, we cannot rule out informative dropout. Patients who experienced poor treatment response or adverse events may have selectively discontinued follow-up, potentially biasing effect estimates. Sensitivity analyses using pattern-mixture models or joint models for longitudinal data and dropout would strengthen confidence in our conclusions but were beyond the scope of this analysis.
+
+Also, our model assumed linear trajectories within the treatment and post-treatment phases. While diagnostics did not reveal major specification errors, it is possible that more flexible approaches (e.g., quadratic trends, additional spline knots, or penalized splines) might better capture the true trajectory of symptom change.
+
+We modeled depression episode length (<6m vs >6m) as the only covariate beyond treatment and time. Other potentially important prognostic factors such as age, sex, socioe-economic status, comorbid anxiety, or severity of depression at baseline were not available or included in our analysis. 
+
+## Directions for Future Research
+
+Larger randomized trials with extended follow-up (12-24 months) are needed to definitively establish long-term efficacy and identify factors predicting sustained response, with prospective tracking of treatment adherence for dose-response analyses. Research should investigate strategies to enhance durability of computerized CBT effects, including periodic booster sessions, integration with mobile health applications for ongoing monitoring, or hybrid models combining computerized and human-delivered components. Individual patient data meta-analyses pooling multiple trials could identify patient characteristics or contextual factors that moderate treatment response, facilitating personalized recommendations.
+
+# Conclusion
+
+This randomized trial provides preliminary evidence that the Beating the Blues computerized CBT program may produce modest additional reductions in depression symptoms during active treatment compared to usual care, though this effect did not achieve conventional statistical significance and was not sustained during post-treatment follow-up. Both groups experienced meaningful symptom improvement, with depression chronicity emerging as an important prognostic factor.
+
+While computerized interventions hold promise for expanding access to evidence-based psychotherapy, our findings underscore the need for strategies to enhance durability of treatment effects. Larger trials with extended follow-up, attention to treatment adherence, and investigation of booster or maintenance protocols are warranted. Clinicians implementing computerized CBT should plan for ongoing monitoring and support to preserve therapeutic gains. In the context of limited statistical power and substantial missing data, these results should be interpreted cautiously as hypothesis-generating rather than definitive, highlighting the importance of replication in larger, adequately powered studies.
+
+# References
+
+[1] Andersson, G., & Cuijpers, P. (2009). Internet-based and other computerized psychological treatments for adult depression: A meta-analysis. Cognitive Behaviour Therapy, 38(4), 196–205.
+
+[2] Button, K. S., Kounali, D., Thomas, L., Wiles, N. J., Peters, T. J., Welton, N. J., ... & Lewis, G. (2015). Minimal clinically important difference on the Beck Depression Inventory—II according to the patient’s perspective. Psychological Medicine, 45(15), 3269–3279.
+
+[3] Hollis, C., Falconer, C. J., Martin, J. L., Whittington, C., Stockton, S., Glazebrook, C., & Davies, E. B. (2017). Annual research review: Digital health interventions for children and young people with mental health problems—a systematic and meta-review. Journal of Child Psychology and Psychiatry, 58(4), 474–503.
+
+\newpage
+
+# Appendix
+
+```{r Diagnostic Plot, echo=FALSE, warning=FALSE, message=FALSE, fig.height = 10, fig.width = 8, fig.pos='H'}
+# Final model
+fit_final <- lme(
+  fixed = bdi ~ treatment + time + time_knot + treatment * time + treatment * time_knot + length,
+  random = ~ time | id,
+  weights = varIdent(form = ~ 1 | length),
+  data = depression_long,
+  method = "ML",
+  na.action = na.omit)
+
+# standardized stage-one residuals
+rhat <- resid(fit_final, type = "normalized")
+
+# conditional mean / fitted values
+condmean <- predict(fit_final)
+yhat <- predict(fit_final)
+
+# use the same rows kept in the fitted model
+diag_dat <- depression_long %>%
+  drop_na(bdi, treatment, time, time_knot, length) %>%
+  arrange(id, time)
+
+# response vector
+y <- diag_dat$bdi
+
+# raw stage-one residuals
+stg1r <- y - condmean
+
+# combined raw + standardized residual data for panel 1
+rtype <- c(rep("Raw", length(stg1r)), rep("Standardized", length(rhat)))
+resid_vals <- c(stg1r, rhat)
+
+stg1resids <- data.frame(
+  rtype = rtype,
+  resid = as.numeric(resid_vals))
+
+# data for panels 3 and 4
+diag_dat2 <- diag_dat %>%
+  mutate(
+    fitted = as.numeric(yhat),
+    rhat = as.numeric(rhat)
+  ) %>%
+  group_by(id) %>%
+  arrange(time, .by_group = TRUE) %>%
+  mutate(rhat1 = lag(rhat)) %>%
+  ungroup()
+
+# random effects
+ranef_fit <- ranef(fit_final)
+
+ranef_long <- ranef_fit %>%
+  rownames_to_column(var = "id") %>%
+  pivot_longer(
+    cols = -id,
+    names_to = "ranefs",
+    values_to = "estimates")
+
+# specify theme for the plot
+diag_theme <- theme_bw(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 10.5),
+    panel.grid.minor = element_blank())
+
+# 1. Histogram of raw + standardized residuals
+p1 <- ggplot(stg1resids, aes(x = resid, fill = rtype)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 40) +
+  labs(
+    title = "(a) Histogram of raw and \nstandardized residuals",
+    x = "Residuals",
+    y = "Count",
+    fill = "Type") +
+  theme_bw(base_size = 11) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5, size = 10.5),
+    legend.position = "top",
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+# 2. Q-Q plot of standardized residuals
+p2 <- ggplot(diag_dat2, aes(sample = rhat)) +
+  stat_qq(size = 1) +
+  stat_qq_line(linewidth = 0.8) +
+  labs(
+    title = "(b) Normal Q-Q plot of \nstandardized residuals",
+    x = "Theoretical quantiles",
+    y = "Sample quantiles") +
+  diag_theme
+
+# 3. Standardized residuals vs predicted mean
+p3 <- ggplot(diag_dat2, aes(x = fitted, y = rhat)) +
+  geom_point(alpha = 0.65, size = 1.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.6) +
+  labs(
+    title = "(c) Standardized residuals \nvs. predicted mean",
+    x = "Predicted mean",
+    y = "Standardized residual") +
+  diag_theme
+
+# 4. Lagged standardized residual plot
+p4 <- ggplot(filter(diag_dat2, !is.na(rhat1)), aes(x = rhat1, y = rhat)) +
+  geom_point(alpha = 0.65, size = 1.5) +
+  geom_hline(yintercept = 0, linetype = "dashed", linewidth = 0.6) +
+  geom_vline(xintercept = 0, linetype = "dashed", linewidth = 0.6) +
+  labs(
+    title = "(d) Lagged standardized \nresidual plot",
+    x = "Lagged standardized residual",
+    y = "Standardized residual") +
+  diag_theme
+
+# 5. Q-Q plot of random intercepts
+p5 <- ggplot(
+  data.frame(rand_int = ranef_fit[, 1]),
+  aes(sample = rand_int)) +
+  stat_qq(size = 1) +
+  stat_qq_line(linewidth = 0.8) +
+  coord_cartesian(xlim = c(-1.5, 1.5)) +
+  labs(
+    title = "(e) Normal Q-Q plot of \nrandom intercepts",
+    x = "Theoretical quantiles",
+    y = "Sample quantiles") +
+  diag_theme
+
+# 6. Q-Q plot of random slope for time
+p6 <- ggplot(
+  data.frame(rand_slope = ranef_fit[, 2]),
+  aes(sample = rand_slope)) +
+  stat_qq(size = 1) +
+  stat_qq_line(linewidth = 0.8) +
+  coord_cartesian(xlim = c(-1.5, 1.5)) +
+  labs(
+    title = "(f) Normal Q-Q plot of \nrandom slope for time",
+    x = "Theoretical quantiles",
+    y = "Sample quantiles") +
+  diag_theme
+
+# 7. Histogram of random effects
+p7 <- ggplot(ranef_long, aes(x = estimates)) +
+  geom_histogram(position = "identity", alpha = 0.5, bins = 30, fill = "orange", color = "black") +
+  facet_grid(~ ranefs, scales = "free") +
+  labs(
+    title = "(g) Histogram of random effects",
+    x = "Estimates",
+    y = "Count") +
+  diag_theme
+
+# Arrange panels
+final_diag_plot <- (p1 + p2 + p3) /
+                   (p4 + p5 + p6) /
+                   p7 +
+  plot_annotation(
+    title = "Figure 2. Diagnostic Plots for Final Model Assessment",
+    theme = theme(plot.title = element_text(size = 14, face = "bold", hjust = 0.5))
+    )
+
+final_diag_plot
+```
